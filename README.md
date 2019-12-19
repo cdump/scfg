@@ -1,7 +1,9 @@
 # Simple Config
 
-## Howto
-You need just need to embed the following code:
+https://github.com/cdump/scfg
+
+## How to start
+Just embed the following code in your file with main function:
 ```
 extern "C" {
 // clang-format off
@@ -26,7 +28,7 @@ Now you can use parsed params as `cfg.input` (char*), `cfg.num` (unsigned), `cfg
 2. Values from ENV
 3. Values from command line
 
-For example, option from command line overwrite values from config, ENV var overwrite config value and so on
+For example, command line option overwrites the config value, ENV var overwrites config value and so on
 
 ## Example
 See full example in example.cc
