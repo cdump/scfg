@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 
-#include "ini.c"
+#include "ini.h"
 
 #define SCFG_NO_DEFAULT ((int64_t)0xdeadbeef)
 

@@ -1,0 +1,16 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "scfg",
+    linkstatic = 1,
+    srcs = [
+        "ini.c",
+        "ini.h",
+    ],
+    hdrs = [
+        "scfg.h",
+        "ini.h",
+    ],
+    include_prefix = "scfg",
+    visibility = ["//visibility:public"],
+)
