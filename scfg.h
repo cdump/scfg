@@ -1,4 +1,7 @@
 #pragma once
+#include <ctype.h>
+#include <string.h>
+#include <stdbool.h>
 
 #ifndef SCFG_APP_CONFIG
 #error You MUST define SCFG_APP_CONFIG
