@@ -4,6 +4,7 @@ extern "C" {
 // clang-format off
 #define SCFG_APP_CONFIG(XX)                                                            \
   XX((input),              SCFG_STRING,  'i', SCFG_NO_DEFAULT, "required string arg")  \
+  XX((file),               SCFG_STRING,   0,  "/etc/passwd",   "string arg default")   \
   XX((num),                SCFG_UNSIGNED, 0,  8,               "num with default val") \
   /**/                                                                                 \
   XX((enabled,   filter),  SCFG_BOOL,     0,  false,           "filter on/off")        \

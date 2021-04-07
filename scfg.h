@@ -26,7 +26,8 @@
 
 #include "ini.h"
 
-#define SCFG_NO_DEFAULT ((int64_t)0xdeadbeef)
+#define SCFG_NO_DEFAULT "\"SCFG_NO_DEFAULT\""
+#define IS_REQUIRED_SCFG(val) (sizeof(#val) == sizeof(SCFG_NO_DEFAULT) && !memcmp(#val, SCFG_NO_DEFAULT, sizeof(SCFG_NO_DEFAULT) - 1))
 
 #define STRNAME_SCFG_STRING "string"
 #define HASARG_SCFG_STRING 1
@@ -344,7 +345,7 @@ scfg_generate_config()
 static void
 scfg_set_defaults() {
 #define XX(VNAME, TYPE, OPT, DEFAULT, ...) do {         \
-    if ((int64_t)DEFAULT != SCFG_NO_DEFAULT) {          \
+    if (!IS_REQUIRED_SCFG(#DEFAULT)) {                  \
         cfg.SCFG_FULL_VAR VNAME = (TYPE_##TYPE)DEFAULT; \
     }                                                   \
 } while(0);
@@ -358,7 +359,7 @@ scfg_check() {
     bool ret = true;
 
 #define XX(VNAME, TYPE, OPT, DEFAULT, ...) do {                                                     \
-    if (!scfg_config_parsed.SCFG_FULL_VAR VNAME && (int64_t)DEFAULT == SCFG_NO_DEFAULT) {           \
+    if (!scfg_config_parsed.SCFG_FULL_VAR VNAME && IS_REQUIRED_SCFG(#DEFAULT)) {                    \
         const char *lname = scfg_get_longopt_name((SCFG_SECTION_STR VNAME), (SCFG_NAME_STR VNAME)); \
         if (OPT) {                                                                                  \
             fprintf(stderr, "Option -%c (--%s) must be set\n", OPT, lname);                         \
