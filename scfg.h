@@ -88,7 +88,7 @@ static struct {
     SCFG_GEN_CONFIG(XX)
 #undef XX
 } scfg_config_parsed;
-bool scfg_init(int argc, char *argv[]);
+static bool scfg_init(int argc, char *argv[]);
 
 static bool
 scfg_parse_bool(const char *s)
@@ -375,7 +375,7 @@ scfg_check() {
     return ret;
 }
 
-bool
+static bool
 scfg_init(int argc, char *argv[])
 {
     // 0. set defaults
