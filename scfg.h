@@ -382,6 +382,11 @@ scfg_init(int argc, char *argv[])
     // 0. set defaults
     scfg_set_defaults();
 
+    // config-file path from env
+    char *env_config_file_path = getenv("CFG_CONFIG");
+    if (env_config_file_path)
+        cfg.config = env_config_file_path;
+
     // 1. argv to get config filename
     if (!scfg_parse_argv(argc, argv))
         return false;
