@@ -5,22 +5,36 @@ https://github.com/cdump/scfg
 ## How to start
 Just embed the following code in your file with main function:
 ```
-extern "C" {
+#include "scfg/scfg_types.hpp"
 // clang-format off
 #define SCFG_APP_CONFIG(XX)                                                            \
-  XX((input),              SCFG_STRING,  'i', SCFG_NO_DEFAULT, "required string arg")  \
-  XX((num),                SCFG_UNSIGNED, 0,  8,               "num with default val") \
+  XX((input),              std::string,  'i', SCFG_NO_DEFAULT, "required string arg")  \
+  XX((num),                unsigned, 0,  8,                    "num with default val") \
   /**/                                                                                 \
-  XX((enabled,   filter),  SCFG_BOOL,     0,  false,           "filter on/off")        \
-  XX((threshold, filter),  SCFG_DOUBLE,   0,  1.4,             "filter threhsold")     \
+  XX((enabled,   filter),  bool,     0,  false,                "filter on/off")        \
+  XX((threshold, filter),  double,   0,  1.4,                  "filter threhsold")     \
   /**/                                                                                 \
 // clang-format on
 
-#include "./scfg.h"
+#include "scfg/scfg.hpp"
+scfg::config cfg;
+
+...
+
+int
+main(int argc, char **argv)
+{
+    try {
+        cfg = scfg::init(argc, argv);
+    } catch(std::exception &ex) {
+        printf("Err: %s\n", ex.what());
+        return 1;
+    }
+    ...
 }
 ```
 
-Now you can use parsed params as `cfg.input` (char*), `cfg.num` (unsigned), `cfg.filter_enabled` (bool), `cfg.filter_threshold` (double)
+Now you can use parsed params as `cfg.input` (std::string), `cfg.num` (unsigned), `cfg.filter_enabled` (bool), `cfg.filter_threshold` (double)
 
 ## Options priority
 0. Default values

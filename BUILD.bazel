@@ -4,13 +4,18 @@ cc_library(
     name = "scfg",
     linkstatic = 1,
     srcs = [
-        "ini.c",
-        "ini.h",
+        "scfg/ini.c",
+        "scfg/ini.h",
     ],
     hdrs = [
-        "scfg.h",
-        "ini.h",
+        "scfg/scfg.hpp",
+        "scfg/scfg_types.hpp",
     ],
-    include_prefix = "scfg",
     visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "example",
+    srcs = ["example.cc"],
+    deps = [":scfg"]
 )
