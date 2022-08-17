@@ -1,8 +1,7 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
 cc_library(
     name = "scfg",
-    linkstatic = 1,
     srcs = [
         "scfg/ini.c",
         "scfg/ini.h",
@@ -11,11 +10,17 @@ cc_library(
         "scfg/scfg.hpp",
         "scfg/scfg_types.hpp",
     ],
+    linkstatic = 1,
+    local_defines = [
+        "INI_USE_STACK=0",
+        "INI_ALLOW_REALLOC=1",
+        "INI_MAX_LINE=32768",
+    ],
     visibility = ["//visibility:public"],
 )
 
 cc_binary(
     name = "example",
     srcs = ["example.cc"],
-    deps = [":scfg"]
+    deps = [":scfg"],
 )
