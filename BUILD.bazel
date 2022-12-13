@@ -17,6 +17,7 @@ cc_library(
         "INI_MAX_LINE=32768",
     ],
     visibility = ["//visibility:public"],
+    deps = ["@com_github_jbeder_yaml_cpp//:yaml-cpp"],
 )
 
 cc_binary(

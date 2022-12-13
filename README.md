@@ -3,7 +3,24 @@
 https://github.com/cdump/scfg
 
 ## How to start
-Just embed the following code in your file with main function:
+
+1. Add to your bazel `WORKSPACE`:
+```
+http_archive(
+    name = "com_github_cdump_scfg",
+    strip_prefix = "scfg-<githash>",
+    urls = [
+        "https://github.com/cdump/scfg/archive/<githash>.tar.gz",
+    ],
+)
+
+load("@com_github_cdump_scfg//:scfg_deps.bzl", "scfg_deps")
+
+scfg_deps()
+```
+
+
+2. add the following code in your file with main function:
 ```
 #include "scfg/scfg_types.hpp"
 // clang-format off
@@ -50,78 +67,76 @@ See full example in example.cc
 * Compile:
 
 ```sh
-$ g++ example.cc
+$ bazel build '@//:example'
 ```
 
 * Show help:
 
 ```sh
-$ ./a.out --help
-Usage: ./a.out [options]
-  -h, --help               {bool}        - display this help and exit
-  -c, --config             {string}      - path to config file
-  -C, --config-template    {bool}        - echo default config to stdout
-  -i, --input              {string}      - required string arg
-      --num                {number}      - num with default val
-      --filter-enabled     {bool}        - filter on/off
-      --filter-threshold   {double}      - filter threhsold
+$ ./bazel-bin/example --help
+Usage: ./bazel-bin/example [options]
+  -h, --help                 {bool}     - display this help and exit
+  -c, --config               {string}   - path to config file
+  -C, --config-template      {bool}     - echo default config to stdout
+  -i, --input                {string}   - required string arg
+      --file                 {string}   - string arg default
+      --num                  {number}   - num with default val
+      --filter-enabled       {bool}     - filter on/off
+      --filter-threshold     {double}   - filter threhsold
+      --filter-subgroup-val  {double}   - filter subgroup
 ```
 
 * Run without args:
 
 ```sh
-$ ./a.out
+$ ./bazel-bin/example
 Option -i (--input) must be set
+Err: not all required options provided
 ```
 
 * Run with required arg:
 
 ```sh
-$ ./a.out --input xxx
+$ ./bazel-bin/example --input xxx 
 Config values, config-file: (not specified)
   .input = xxx
+  .file = /etc/passwd
   .num = 8
   filter.enabled = false
-  filter.threshold = 1.400000
+  filter.threshold = 1.500000
+  filter.subgroup_val = 1.200000
 
-input='xxx', filter: [0 ; 1.400000]
+input='xxx', filter: [0 ; 1.500000; 1.200000]
 ```
 
 * Generate default config:
 
 ```sh
-$ ./a.out -i defaultinput --config-template > config.ini && cat config.ini
+$ ./bazel-bin/example -i defaultinput --config-template > config.yaml && cat config.yaml
 
-## required string arg
-## type:string env:CFG_INPUT longopt:--input
-input = defaultinput
-
-## num with default val
-## type:number env:CFG_NUM longopt:--num
-num = 8
-
-#------------------------------
-[filter]
-#------------------------------
-## filter on/off
-## type:bool env:CFG_FILTER_ENABLED longopt:--filter-enabled
-enabled = false
-
-## filter threhsold
-## type:double env:CFG_FILTER_THRESHOLD longopt:--filter-threshold
-threshold = 1.400000
+---
+input: defaultinput
+file: /etc/passwd
+num: 8
+filter:
+  enabled: false
+  threshold: 1.5
+  subgroup:
+    val: 1.2
+...
 ```
 
 * Run with config & override config params:
 
 ```sh
-$ CFG_NUM=41 ./a.out --config config.ini --input aaa
-
-Config values, config-file: config.ini
+$ CFG_NUM=41 ./bazel-bin/example --config config.yaml --input aaa
+Config values, config-file: config.yaml
   .input = aaa
+  .file = /etc/passwd
   .num = 41
   filter.enabled = false
-  filter.threshold = 1.400000
+  filter.threshold = 1.500000
+  filter.subgroup_val = 1.200000
 
-input='aaa', filter: [0 ; 1.400000]
+input='aaa', filter: [0 ; 1.500000; 1.200000]
 ```
