@@ -31,16 +31,32 @@
 #define SCFG_NO_DEFAULT
 
 #define SCFG_FULL_VAR_0(NAME, ...) NAME
-#define SCFG_FULL_VAR_1(NAME, SECTION) SECTION##_##NAME
+#define SCFG_FULL_VAR_1(NAME, SECTION, ...) SECTION##_##NAME
+#define SCFG_FULL_VAR_2(NAME, SUBSECTION, SECTION) SECTION##_##SUBSECTION##_##NAME
 
 #define SCFG_SECTION_STR_0(NAME, ...) ""
-#define SCFG_SECTION_STR_1(NAME, SECTION) #SECTION
+#define SCFG_SECTION_STR_1(NAME, SECTION, ...) #SECTION
+#define SCFG_SECTION_STR_2(NAME, SUBSECTION, SECTION) #SECTION
 
-#define SCFG_VNAME_CALL(FN, A, B, N, ...) FN##_##N(A, B)
+#define SCFG_SUBSECTION_STR_0(NAME, ...) ""
+#define SCFG_SUBSECTION_STR_1(NAME, SECTION, ...) ""
+#define SCFG_SUBSECTION_STR_2(NAME, SUBSECTION, SECTION) #SUBSECTION
 
-#define SCFG_FULL_VAR(VNAME, ...) SCFG_VNAME_CALL(SCFG_FULL_VAR, VNAME, ##__VA_ARGS__, 1, 0)
-#define SCFG_SECTION_STR(VNAME, ...) SCFG_VNAME_CALL(SCFG_SECTION_STR, VNAME, ##__VA_ARGS__, 1, 0)
-#define SCFG_NAME_STR(VNAME, ...) #VNAME
+#define SCFG_NAME_STR_0(NAME, ...) #NAME
+#define SCFG_NAME_STR_1(NAME, SECTION, ...) #NAME
+#define SCFG_NAME_STR_2(NAME, SUBSECTION, SECTION) #SUBSECTION"_"#NAME
+
+#define SCFG_YAMLNAME_STR_0(NAME, ...) #NAME
+#define SCFG_YAMLNAME_STR_1(NAME, ...) #NAME
+#define SCFG_YAMLNAME_STR_2(NAME, ...) #NAME
+
+#define SCFG_VNAME_CALL(FN, A, B, C, N, ...) FN##_##N(A, B, C)
+
+#define SCFG_FULL_VAR(VNAME, ...) SCFG_VNAME_CALL(SCFG_FULL_VAR, VNAME, ##__VA_ARGS__, 2, 1, 0)
+#define SCFG_SECTION_STR(VNAME, ...) SCFG_VNAME_CALL(SCFG_SECTION_STR, VNAME, ##__VA_ARGS__, 2, 1, 0)
+#define SCFG_SUBSECTION_STR(VNAME, ...) SCFG_VNAME_CALL(SCFG_SUBSECTION_STR, VNAME, ##__VA_ARGS__, 2, 1, 0)
+#define SCFG_NAME_STR(VNAME, ...) SCFG_VNAME_CALL(SCFG_NAME_STR, VNAME, ##__VA_ARGS__, 2, 1, 0)
+#define SCFG_YAMLNAME_STR(VNAME, ...) SCFG_VNAME_CALL(SCFG_YAMLNAME_STR, VNAME, ##__VA_ARGS__, 2, 1, 0)
 
 namespace scfg {
 
@@ -52,9 +68,11 @@ struct config {
 
 namespace impl { // internal
 
+
 namespace ini {
 #include "ini.h"
 } // namespace ini
+
 
 struct config_parsed {
 #define XX(VNAME, ...) bool SCFG_FULL_VAR VNAME {false};
@@ -63,13 +81,23 @@ struct config_parsed {
 };
 
 template <class T>
-void
+inline void
 parse(std::string_view value, T &out, std::string_view param_name)
 {
     try {
         scfg::parse(value, out);
     } catch (std::exception &e) {
         throw std::invalid_argument{"option '" + std::string{param_name} + "' value '" + std::string{value} + "' parse error: " + e.what()};
+    }
+}
+template <class T>
+inline void
+parse_yaml(const YAML::Node &value, T &out, std::string_view param_name)
+{
+    try {
+        scfg::parse_yaml(value, out);
+    } catch (std::exception &e) {
+        throw std::invalid_argument{"option '" + std::string{param_name} + "' parse error: " + e.what()};
     }
 }
 
@@ -119,6 +147,39 @@ handler_ini(void *udata, const char *ini_section, const char *ini_name, const ch
 #undef XX
     fprintf(stderr, "Config file: unknown option %s.%s = %s\n", ini_section, ini_name, ini_value);
     return 0;
+}
+
+inline void
+parse_config_ini(scfg::config &cfg, scfg::impl::config_parsed &parsed_options)
+{
+    auto ini_ctx = std::make_pair(std::ref(cfg), std::ref(parsed_options));
+    if (scfg::impl::ini::ini_parse(cfg.config.c_str(), scfg::impl::handler_ini, &ini_ctx) < 0)
+        throw std::runtime_error{"failed to parse config file " + cfg.config};
+}
+
+inline void
+parse_config_yaml(scfg::config &cfg, scfg::impl::config_parsed &parsed_options)
+{
+    YAML::Node root = YAML::LoadFile(cfg.config);
+#define XX(VNAME, TYPE, ...) do {                                                   \
+    std::string section{SCFG_SECTION_STR VNAME};                                    \
+    std::string subsection{SCFG_SUBSECTION_STR VNAME};                              \
+    std::string key{SCFG_YAMLNAME_STR VNAME};                                       \
+    YAML::Node node;                                                                \
+    if (section.empty()) {                                                          \
+        node = root[key];                                                           \
+    } else if (subsection.empty()) {                                                \
+        node = root[section][key];                                                  \
+    } else {                                                                        \
+        node = root[section][subsection][key];                                      \
+    }                                                                               \
+    if (node) {                                                                     \
+        scfg::impl::parse_yaml(node, cfg.SCFG_FULL_VAR VNAME, SCFG_NAME_STR VNAME); \
+        parsed_options.SCFG_FULL_VAR VNAME = true;                                  \
+    }                                                                               \
+} while(0);
+    SCFG_APP_CONFIG(XX)
+#undef XX
 }
 
 inline void
@@ -229,7 +290,7 @@ show_help(const char *selfname)
 }
 
 inline void
-generate_config(const scfg::config &cfg)
+generate_config_ini(const scfg::config &cfg)
 {
     std::string_view last_section;
 #define XX(VNAME, TYPE, OPT, DEFAULT, DESCRIPTION)                          \
@@ -257,6 +318,35 @@ generate_config(const scfg::config &cfg)
 
     SCFG_APP_CONFIG(XX)
 #undef XX
+}
+
+inline void
+generate_config_yaml(const scfg::config &cfg)
+{
+    YAML::Node node;
+#define XX(VNAME, TYPE, OPT, DEFAULT, DESCRIPTION)               \
+    do {                                                         \
+        std::string section{SCFG_SECTION_STR VNAME};             \
+        std::string subsection{SCFG_SUBSECTION_STR VNAME};       \
+        std::string key{SCFG_YAMLNAME_STR VNAME};                \
+        auto value = scfg::format_yaml(cfg.SCFG_FULL_VAR VNAME); \
+        if (section.empty()) {                                   \
+            node[key] = value;                                   \
+        } else {                                                 \
+            if (subsection.empty()) {                            \
+                node[section][key] = value;                      \
+            } else {                                             \
+                node[section][subsection][key] = value;          \
+            }                                                    \
+        }                                                        \
+    } while (0);
+
+    SCFG_APP_CONFIG(XX)
+#undef XX
+
+    YAML::Emitter out;
+    out << node;
+    printf("---\n%s\n...\n", out.c_str());
 }
 
 static void
@@ -308,9 +398,11 @@ init(int argc, char *argv[])
 
     // 2. read options from config filename
     if (!cfg.config.empty()) {
-        auto ini_ctx = std::make_pair(std::ref(cfg), std::ref(parsed_options));
-        if (scfg::impl::ini::ini_parse(cfg.config.c_str(), scfg::impl::handler_ini, &ini_ctx) < 0)
-            throw std::runtime_error{"failed to parse config file " + cfg.config};
+        if (!scfg::impl::ini::ini_parse(cfg.config.c_str(), +[](void *, const char *, const char *, const char *){ return 0; }, nullptr)) {
+            scfg::impl::parse_config_ini(cfg, parsed_options);
+        } else {
+            scfg::impl::parse_config_yaml(cfg, parsed_options);
+        }
     }
 
     // 3. parse env
@@ -325,7 +417,8 @@ init(int argc, char *argv[])
     }
 
     if (cfg.config_template) {
-        scfg::impl::generate_config(cfg);
+        // scfg::impl::generate_config_ini(cfg);
+        scfg::impl::generate_config_yaml(cfg);
         exit(EXIT_SUCCESS);
     }
 

@@ -5,6 +5,8 @@
 #include <string>
 #include <string_view>
 
+#include "yaml-cpp/yaml.h"
+
 #ifdef SCFG_APP_CONFIG
 #error You must include this file BEFORE defining SCFG_APP_CONFIG
 #endif
@@ -20,6 +22,16 @@ std::string_view type_name{};
 
 template<class T>
 std::string format(const T &v);
+
+template<class T>
+void parse_yaml(const YAML::Node &node, T &out) {
+    out = node.as<T>();
+}
+
+template<class T>
+YAML::Node format_yaml(const T &v) {
+    return YAML::Node(v);
+}
 
 template<class T>
 inline constexpr bool opt_arg_required = true;

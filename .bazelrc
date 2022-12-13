@@ -1,0 +1,2 @@
+build --announce_rc  # print out all options from rc files
+build --cxxopt='-std=c++17'  # modern c++
