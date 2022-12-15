@@ -398,7 +398,7 @@ init(int argc, char *argv[])
 
     // 2. read options from config filename
     if (!cfg.config.empty()) {
-        if (!scfg::impl::ini::ini_parse(cfg.config.c_str(), +[](void *, const char *, const char *, const char *){ return 0; }, nullptr)) {
+        if (!scfg::impl::ini::ini_parse(cfg.config.c_str(), +[](void *, const char *, const char *, const char *){ return 1; }, nullptr)) {
             scfg::impl::parse_config_ini(cfg, parsed_options);
         } else {
             scfg::impl::parse_config_yaml(cfg, parsed_options);
