@@ -19,12 +19,13 @@
 #include <getopt.h>
 
 // clang-format off
-#define SCFG_GEN_CONFIG(XX)                                                         \
-  /* (NAME,SECTION)       TYPE        OPT  DEFAULT  DESCRIPTION */                  \
-    XX((help),            bool,        'h', false, "display this help and exit")    \
-    XX((config),          std::string, 'c', "",    "path to config file")           \
-    XX((config_template), bool,        'C', false, "echo default config to stdout") \
-    /**/                                                                            \
+#define SCFG_GEN_CONFIG(XX)                                                                                \
+  /* (NAME,SECTION)       TYPE        OPT  DEFAULT  DESCRIPTION */                                         \
+    XX((help),                   bool,        'h', false,  "display this help and exit")                   \
+    XX((config),                 std::string, 'c', "",     "path to config file")                          \
+    XX((config_template),        bool,        'C', false,  "echo default config to stdout")                \
+    XX((config_template_format), std::string,  0,  "yaml", "config-template output format (yaml/env/ini)") \
+    /**/                                                                                                   \
     SCFG_APP_CONFIG(XX)
 // clang-format on
 
@@ -267,30 +268,32 @@ show_help(const char *selfname)
 #undef XX
 
     size_t pos = 0;
-#define XX(VNAME, TYPE, OPT, DEFAULT, DESCRIPTION)                         \
-    do {                                                                   \
-        static_assert(!type_name<TYPE>.empty(),                            \
-            "no scfg::type_name template specialization for type " #TYPE); \
-        fprintf(                                                           \
-            stderr,                                                        \
-            "  %c%c%c --%-*s {%.*s}%-*c - " DESCRIPTION "\n",              \
-            (OPT) ? '-' : ' ',                                             \
-            (OPT) ? (OPT) : ' ',                                           \
-            (OPT) ? ',' : ' ',                                             \
-            int(max_lopt_len + 1),                                         \
-            longopt_names[pos].c_str(),                                    \
-            int(scfg::type_name<TYPE>.size()),                             \
-            scfg::type_name<TYPE>.data(),                                  \
-            int(max_type_len - scfg::type_name<TYPE>.size() + 2),          \
-            ' ');                                                          \
-        pos++;                                                             \
+#define XX(VNAME, TYPE, OPT, DEFAULT, DESCRIPTION)                                          \
+    do {                                                                                    \
+        static_assert(!type_name<TYPE>.empty(),                                             \
+            "no scfg::type_name template specialization for type " #TYPE);                  \
+        fprintf(                                                                            \
+            stderr,                                                                         \
+            "  %c%c%c --%-*s {%.*s}%-*c - " DESCRIPTION " (env:%s)\n",                      \
+            (OPT) ? '-' : ' ',                                                              \
+            (OPT) ? (OPT) : ' ',                                                            \
+            (OPT) ? ',' : ' ',                                                              \
+            int(max_lopt_len + 1),                                                          \
+            longopt_names[pos].c_str(),                                                     \
+            int(scfg::type_name<TYPE>.size()),                                              \
+            scfg::type_name<TYPE>.data(),                                                   \
+            int(max_type_len - scfg::type_name<TYPE>.size() + 2),                           \
+            ' ',                                                                            \
+            scfg::impl::env_name((SCFG_SECTION_STR VNAME), (SCFG_NAME_STR VNAME)).c_str()   \
+        );                                                                                  \
+        pos++;                                                                              \
     } while (0);
     SCFG_GEN_CONFIG(XX)
 #undef XX
 }
 
 inline void
-generate_config_ini(const scfg::config &cfg)
+print_config_ini(const scfg::config &cfg)
 {
     std::string_view last_section;
 #define XX(VNAME, TYPE, OPT, DEFAULT, DESCRIPTION)                          \
@@ -320,7 +323,7 @@ generate_config_ini(const scfg::config &cfg)
 #undef XX
 }
 
-inline void
+inline std::string
 generate_config_yaml(const scfg::config &cfg)
 {
     YAML::Node node;
@@ -346,7 +349,20 @@ generate_config_yaml(const scfg::config &cfg)
 
     YAML::Emitter out;
     out << node;
-    printf("---\n%s\n...\n", out.c_str());
+    return std::string{out.c_str()};
+}
+
+inline void
+print_config_env(const scfg::config &cfg)
+{
+#define XX(VNAME, TYPE, OPT, DEFAULT, DESCRIPTION)                                    \
+    printf("%s=%s\n",                                                                 \
+       scfg::impl::env_name((SCFG_SECTION_STR VNAME), (SCFG_NAME_STR VNAME)).c_str(), \
+       scfg::format(cfg.SCFG_FULL_VAR VNAME).c_str()                                  \
+    );
+
+    SCFG_APP_CONFIG(XX)
+#undef XX
 }
 
 static void
@@ -375,10 +391,7 @@ inline void
 print(const scfg::config &cfg)
 {
     fprintf(stderr, "Config values, config-file: %s\n", !cfg.config.empty() ? cfg.config.c_str() : "(not specified)");
-#define XX(VNAME, ...) fprintf(stderr, "  %s.%s = %s\n", (SCFG_SECTION_STR VNAME), (SCFG_NAME_STR VNAME), scfg::format(cfg.SCFG_FULL_VAR VNAME).c_str());
-    SCFG_APP_CONFIG(XX)
-#undef XX
-    fprintf(stderr, "\n");
+    fprintf(stderr, "---\n%s\n...\n", generate_config_yaml(cfg).c_str());
 }
 }; // namespace impl
 
@@ -417,8 +430,17 @@ init(int argc, char *argv[])
     }
 
     if (cfg.config_template) {
-        // scfg::impl::generate_config_ini(cfg);
-        scfg::impl::generate_config_yaml(cfg);
+        if (cfg.config_template_format == "yaml") {
+            auto s = scfg::impl::generate_config_yaml(cfg);
+            printf("---\n%s\n...\n", s.c_str());
+        } else if (cfg.config_template_format == "ini") {
+            scfg::impl::print_config_ini(cfg);
+        } else if (cfg.config_template_format == "env") {
+            scfg::impl::print_config_env(cfg);
+        } else {
+            throw std::invalid_argument{R"(only "yaml", "env" and "ini" --config-template-format supported)"};
+            exit(EXIT_FAILURE);
+        }
         exit(EXIT_SUCCESS);
     }
 
