@@ -146,6 +146,23 @@ handler_ini(void *udata, const char *ini_section, const char *ini_name, const ch
     }
     SCFG_APP_CONFIG(XX)
 #undef XX
+
+    // If we can't find var for ini name='.filter_enabled', try 'filter_enabled' (section=filter, name=enabled),
+    // because we split some vars to section+name during yaml migration
+    std::string_view::size_type p{0};
+    if (name[0] == '.' && (p = name.find('_')) != std::string_view::npos) {
+        section = name.substr(1, p-1);
+        name = name.substr(p+1);
+#define XX(VNAME, TYPE, ...)                                                    \
+    if (section == SCFG_SECTION_STR VNAME && name == SCFG_NAME_STR VNAME) {     \
+        scfg::impl::parse(value, cfg.SCFG_FULL_VAR VNAME, SCFG_NAME_STR VNAME); \
+        parsed_options.SCFG_FULL_VAR VNAME = true;                              \
+        return 1;                                                               \
+    }
+    SCFG_APP_CONFIG(XX)
+#undef XX
+    }
+
     fprintf(stderr, "Config file: unknown option %s.%s = %s\n", ini_section, ini_name, ini_value);
     return 0;
 }
