@@ -150,8 +150,8 @@ handler_ini(void *udata, const char *ini_section, const char *ini_name, const ch
     // If we can't find var for ini name='.filter_enabled', try 'filter_enabled' (section=filter, name=enabled),
     // because we split some vars to section+name during yaml migration
     std::string_view::size_type p{0};
-    if (name[0] == '.' && (p = name.find('_')) != std::string_view::npos) {
-        section = name.substr(1, p-1);
+    if ((p = name.find('_')) != std::string_view::npos) {
+        section = name.substr(0, p);
         name = name.substr(p+1);
 #define XX(VNAME, TYPE, ...)                                                    \
     if (section == SCFG_SECTION_STR VNAME && name == SCFG_NAME_STR VNAME) {     \
